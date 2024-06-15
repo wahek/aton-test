@@ -1,0 +1,86 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container-lg d-flex justify-content-between mt-3 mb-3">
+    <button class="btn btn-primary w-25">Добавить клиента</button>
+    <h1 class="text-center">Клиенты</h1>
+    <button class="btn btn-danger w-25">Выйти</button>
+</div>
+{% for client in clients %}
+<div class="container-lg">
+    <div class="card w-100 h-auto">
+        <div class="card-header">
+            Номер счёта: {{client.account_number}}
+        </div>
+        <div class="card-body">
+            <h5 class="card-title">{{ client.second_name }} {{ client.first_name }} {{ client.patronymic }}</h5>
+            <p class="card-text">ИНН: {{ client.INN }}</p>
+            <p class="card-text">Дата рождения: {{ client.birth_date.strftime("%d.%m.%Y") }}</p>
+            <div class="card-footer d-flex justify-content-between"> <!-- Класс text-right для выравнивания вправо -->
+                <p class="card-text text-secondary ">Ответственный: {{ client.responsible_person.full_name }}</p>
+                <div class="dropdown">
+                    <button id="statusButton" class="btn btn-secondary dropdown-toggle" type="button"
+                            data-bs-toggle="dropdown"
+                            aria-expanded="false">
+                        {{ client.status }}
+                    </button>
+                    <ul class="dropdown-menu">
+                        {% for s in status %}
+                        {% if s != client.status %}
+                        <li><a class="dropdown-item" href="#"
+                               onclick="updateStatus('{{ s.value }}', '{{ client.INN }}', '{{request }}')">{{ s.value }}</a></li>
+                        {% endif %}
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    const statusButton = document.getElementById('statusButton');
+
+    window.updateStatus = async function(newStatus, clientINN, request) {
+        // Проверка значений
+        console.log('newStatus:', newStatus);
+        console.log('clientINN:', clientINN);
+        console.log('request:', request);
+
+        // Обновление текста кнопки
+        statusButton.innerText = newStatus;
+
+        // Создание объекта с данными для отправки на сервер
+        const data = {
+            INN: clientINN,
+            status_task: newStatus
+        };
+
+        // Отправка запроса на сервер
+        try {
+            const response = await fetch(`/users/clients/${clientINN}/status`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${document.cookie.replace(/(?:(?:^|.*;\s*)access_token\s*\=\s*([^;]*).*$)|^.*$/, "$1")}`
+                },
+                body: JSON.stringify(data)
+            });
+
+            if (response.status === 401) {
+                window.location.href = "/auth/login";
+            } else if (!response.ok) {
+                const errorData = await response.json();
+                alert(`Error: ${errorData.detail}`);
+            } else {
+                const updatedClient = await response.json();
+                console.log('Client status updated:', updatedClient);
+            }
+        } catch (error) {
+            console.error('Error updating client status:', error);
+        }
+    };
+});
+    </script>
+{% endfor %}
+{% endblock %}
