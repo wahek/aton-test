@@ -1,7 +1,10 @@
 from fastapi.routing import APIRouter
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, status, Form
 from fastapi.security import OAuth2PasswordRequestForm
 from datetime import timedelta
+
+from starlette.requests import Request
+from starlette.responses import RedirectResponse
 
 from src.database.facke import create_client
 from src.auth.schemas import Token
@@ -9,11 +12,19 @@ from src.database.schemas import User, UserInDB, Client
 from .crud import create_user, get_user, verify_password
 from .auth import create_access_token, get_current_user, ACCESS_TOKEN_EXPIRE_MINUTES
 
+from src.template import templates
+
 auth_app = APIRouter()
 
 
+@auth_app.get('/register')
+async def load_registration(request: Request):
+    return templates.TemplateResponse("registration.html", {"request": request})
+
+
 @auth_app.post("/register", response_model=User)
-async def register(user: UserInDB):
+async def register(full_name: str = Form(...), login: str = Form(...), hashed_password: str = Form(...)):
+    user = UserInDB(full_name=full_name, login=login, hashed_password=hashed_password)
     user_in_db = await get_user(login=user.login)
     if user_in_db:
         raise HTTPException(
@@ -21,7 +32,21 @@ async def register(user: UserInDB):
             detail="Username already registered",
         )
     await create_user(user)
-    return user
+    return RedirectResponse("/", status_code=status.HTTP_302_FOUND)
+
+
+@auth_app.get('/login')
+async def load_login(request: Request):
+    return templates.TemplateResponse("login.html", {"request": request})
+
+
+@auth_app.post('/login')
+async def login(request: Request, login: str = Form(...), hashed_password: str = Form(...)):
+    user = await get_user(login=login)
+    if not user or not verify_password(hashed_password, user.hashed_password):
+        return templates.TemplateResponse("login.html", {"request": request, "error": "Incorrect username or password"})
+
+
 
 
 @auth_app.post("/token", response_model=Token)
