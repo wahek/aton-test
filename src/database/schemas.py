@@ -1,6 +1,6 @@
-from pydantic import BaseModel, constr
+from pydantic import BaseModel, conint
 from enum import Enum
-from datetime import date
+from datetime import datetime
 
 
 class Status(str, Enum):
@@ -21,10 +21,10 @@ class UserInDB(User):
 
 class Client(BaseModel):
     account_number: int
-    second_name: str
     first_name: str
+    second_name: str
     patronymic: str | None
-    birth_date: date
-    INN: constr(min_length=12, max_length=12)
-    responsible_person: str
+    birth_date: datetime
+    INN: conint(gt=100000000000, lt=999999999999)
+    responsible_person: User
     status: Status = Status.inactive
